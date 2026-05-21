@@ -2,11 +2,16 @@ name: Build & Publish Fat Mod
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, master, develop, '*-patched', '*-patched-dev']
     tags: ['*']
   pull_request:
     branches: [main, master, develop]
   workflow_dispatch:
+    inputs:
+      entcore_version:
+        description: 'entcore version override (e.g. 6.14.9-patched)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -16,17 +21,17 @@ jobs:
   frontend:
     name: Build Frontend (Gulp)
     runs-on: ubuntu-latest
-    container:
-      image: opendigitaleducation/node:10-alpine
-      options: --user root
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install npm dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Build with Gulp
-        run: node_modules/gulp/bin/gulp.js build
+      - name: Build with Node 10 via Docker
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            --user root \
+            opendigitaleducation/node:10-alpine \
+            sh -c "npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
 
       - name: Upload frontend assets
         uses: actions/upload-artifact@v4
@@ -44,7 +49,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '8'
           distribution: temurin
           cache: maven
 
@@ -54,8 +59,48 @@ jobs:
           name: frontend-assets
           path: src/main/resources/
 
+      - name: Configure Maven pour GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << EOF
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>$GITHUB_ACTOR</username>
+                <password>$GITHUB_TOKEN</password>
+              </server>
+            </servers>
+            <profiles>
+              <profile>
+                <id>github-packages</id>
+                <repositories>
+                  <repository>
+                    <id>github</id>
+                    <name>GitHub open-ent Packages</name>
+                    <url>https://maven.pkg.github.com/open-ent/entcore-v2</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>true</enabled></snapshots>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+            <activeProfiles>
+              <activeProfile>github-packages</activeProfile>
+            </activeProfiles>
+          </settings>
+          EOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
       - name: Build fat JAR
-        run: mvn clean package -DskipTests -B
+        run: |
+          ENTCORE_OPT=""
+          if [ -n "$ENTCORE_VERSION" ]; then ENTCORE_OPT="-DentCoreVersion=$ENTCORE_VERSION"; fi
+          mvn clean package -DskipTests -B $ENTCORE_OPT
+        env:
+          ENTCORE_VERSION: ${{ github.event.inputs.entcore_version }}
 
       - name: Run tests
         if: github.event_name == 'pull_request'
