@@ -24,13 +24,14 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'public',
     rollupOptions: {
       output: {
-        // Noms stables → la vue backend référence des chemins fixes.
-        entryFileNames: 'public/index.js',
-        chunkFileNames: 'public/[name].js',
+        // Noms DISTINCTS (`tlreact.*`) : le mod contient déjà un `public/index.js` (IHM edifice explorer)
+        // qu'il ne faut PAS écraser. Ma vue référence /timelinegenerator/public/tlreact.js.
+        entryFileNames: 'public/tlreact.js',
+        chunkFileNames: 'public/tlreact-[name].js',
         assetFileNames: (info) =>
           info.name && info.name.endsWith('.css')
-            ? 'public/index.css'
-            : 'public/[name]-[hash][extname]',
+            ? 'public/tlreact.css'
+            : 'public/tlreact-[name]-[hash][extname]',
       },
     },
   },

@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { api, Timeline } from '../api';
+import { ShareDialog } from './ShareDialog';
 
-/** Écran d'accueil : liste des frises + création / édition / suppression. */
+/** Écran d'accueil : liste des frises + création / édition / suppression / partage. */
 export function Timelines() {
   const { t } = useTranslation(['timelinegenerator', 'common']);
   const qc = useQueryClient();
+  const [sharing, setSharing] = useState<{ id: string; name: string } | null>(null);
   const query = useQuery({ queryKey: ['timeline', 'list'], queryFn: api.getTimelines });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['timeline', 'list'] });
 
@@ -46,6 +48,16 @@ export function Timelines() {
 
   return (
     <div>
+      {sharing && (
+        <ShareDialog
+          resourceId={sharing.id}
+          resourceName={sharing.name}
+          title={t('timeline.share.title', { defaultValue: 'Partager la frise' })}
+          getShare={api.getTimelineShare}
+          shareBatch={api.shareTimelineBatch}
+          onClose={() => setSharing(null)}
+        />
+      )}
       <div className="d-flex align-items-center justify-content-between mb-16">
         <h1 className="m-0">{t('timeline.title', { defaultValue: 'Frises chronologiques' })}</h1>
         {!creating && (
@@ -107,6 +119,9 @@ export function Timelines() {
                   {tl.headline}
                 </Link>
                 <div className="d-flex gap-8">
+                  <button type="button" className="btn btn-link p-0" onClick={() => setSharing({ id: tl._id, name: tl.headline })}>
+                    {t('timeline.share', { defaultValue: 'Partager' })}
+                  </button>
                   <button type="button" className="btn btn-link p-0" onClick={() => { setEditText(tl.headline); setEditing(tl._id); }}>
                     {t('timeline.edit', { defaultValue: 'Renommer' })}
                   </button>
