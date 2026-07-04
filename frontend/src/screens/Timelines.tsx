@@ -44,7 +44,12 @@ export function Timelines() {
     if (headline.trim()) createMut.mutate();
   };
 
-  const timelines = query.data ?? [];
+  // Recherche (parité Angular explorer) : filtre sur le titre.
+  const [search, setSearch] = useState('');
+  const norm = (s: string) => s.toLocaleLowerCase('fr-FR');
+  const timelines = (query.data ?? []).filter(
+    (tl: Timeline) => !search.trim() || norm(tl.headline ?? '').includes(norm(search.trim())),
+  );
 
   return (
     <div>
@@ -87,6 +92,17 @@ export function Timelines() {
           </button>
         </form>
       )}
+
+      <div className="mb-16" style={{ maxWidth: 360 }}>
+        <input
+          type="search"
+          className="form-control"
+          placeholder={t('timeline.search', { defaultValue: 'Rechercher une frise…' })}
+          aria-label={t('timeline.search', { defaultValue: 'Rechercher une frise…' })}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       {query.isLoading && <p>{t('timeline.loading', { defaultValue: 'Chargement…' })}</p>}
       {query.isError && (
