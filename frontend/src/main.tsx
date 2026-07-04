@@ -7,6 +7,7 @@ import { router } from './routes';
 
 import './i18n';
 import '@open-ent/bootstrap/dist/index.css';
+import './theme-fixes.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

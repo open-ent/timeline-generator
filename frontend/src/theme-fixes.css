@@ -1,0 +1,9 @@
+/* Correctif thème (51C) : le thème force .btn en blanc, rendant les .btn-link illisibles
+   sur fond clair (texte blanc sur blanc). Restaure la couleur de lien standard. */
+.btn-link {
+  color: var(--bs-link-color, #0d6efd);
+}
+.btn-link:hover,
+.btn-link:focus {
+  color: var(--bs-link-hover-color, #0a58ca);
+}
