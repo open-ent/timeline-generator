@@ -7,3 +7,27 @@
 .btn-link:focus {
   color: var(--bs-link-hover-color, #0a58ca);
 }
+
+/* Correctif 51C : les boutons d'action de la frise (.contextual-buttons > button) étaient
+   transparents par défaut (visibles uniquement au survol). On leur donne un style de bouton
+   standard visible dès le repos, avec un survol qui remplit. */
+.contextual-buttons button {
+  background-color: var(--bs-body-bg, #ffffff);
+  color: var(--bs-body-color, #1f2933);
+  border: 1px solid var(--bs-border-color, #ced4da);
+  border-radius: 6px;
+  padding: 6px 14px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.contextual-buttons button:hover,
+.contextual-buttons button:focus {
+  background-color: var(--bs-primary, #2a9bd8);
+  color: #ffffff;
+  border-color: var(--bs-primary, #2a9bd8);
+}
+.contextual-buttons button:disabled {
+  opacity: .5;
+  cursor: default;
+}
