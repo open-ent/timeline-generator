@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{#i18n}}timeline.title{{/i18n}}</title>
+    <link rel="icon" id="favicon" href="" />
+    <!-- Bootstrap openent partagé, chargé au runtime (comme le thème Angular) :
+         une mise à jour du look = mise à jour de ce seul fichier, sans recompiler le module. -->
+    <link rel="stylesheet" href="/assets/themes/openent-bootstrap/index.css" />
+    <!-- Bundle de l'IHM React (cf. frontend/vite.config.ts). Nommé `tlreact.*` pour
+         ne pas écraser le `public/index.js` de l'IHM edifice explorer, qui cohabite
+         dans le même mod. -->
+    <link rel="stylesheet" href="/timelinegenerator/public/tlreact.css?v=@@VERSION" />
+    <script
+      type="module"
+      crossorigin
+      src="/timelinegenerator/public/tlreact.js?v=@@VERSION"
+    ></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="portal"></div>
+  </body>
+</html>

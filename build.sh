@@ -112,6 +112,27 @@ buildNode () {
   fi
 }
 
+buildReact () {
+  # IHM React (CCTP 51C), servie par view/timelinegenerator-react.html via
+  # `frontend-ui: react` dans ent-core.yaml ou le paramètre d'URL `?ui=react`.
+  # Sorties nommées `tlreact.*` (cf. frontend/vite.config.ts) pour ne pas écraser
+  # le `public/index.js` de l'IHM edifice explorer, qui cohabite dans le même mod.
+  echo "[buildReact] Build de l'IHM React (vite)..."
+  if [ "$NO_DOCKER" = "true" ] ; then
+    (cd frontend && pnpm install --frozen-lockfile && pnpm run build)
+  else
+    docker compose run --rm -u "$USER_UID:$GROUP_GID" -w /home/node/app/frontend \
+      -e NODE_AUTH_TOKEN node sh -c "pnpm install --frozen-lockfile && pnpm run build"
+  fi
+  [ -f frontend/dist/public/tlreact.js ] || { echo "[buildReact] tlreact.js absent"; exit 1; }
+
+  echo "[buildReact] Injection des assets dans les ressources du backend..."
+  cp -R frontend/dist/public/. src/main/resources/public/
+  # La vue, elle, vit dans view-src/timelinegenerator-react.html (source suivie par
+  # git) : c'est gulp qui la copie vers view/ en substituant @@VERSION, comme les
+  # autres gabarits. frontend/dist/index.html ne sert qu'au serveur de dev.
+}
+
 publish() {
   version=`docker compose run --rm maven mvn $MVN_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout`
   level=`echo $version | cut -d'-' -f3`
@@ -143,8 +164,11 @@ do
     buildNode)
       buildNode
       ;;
+    buildReact)
+      buildReact
+      ;;
     install)
-      buildNode && install
+      buildNode && buildReact && install
       ;;
     watch)
       watch
