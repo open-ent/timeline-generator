@@ -6,7 +6,9 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 
 import './i18n';
-import '@open-ent/bootstrap/dist/index.css';
+// Le bootstrap openent n'est plus bundlé : il est chargé au runtime via
+// <link href="/assets/themes/openent-bootstrap/index.css"> dans index.html
+// (cf. README-THEME). Permet de changer le look sans recompiler le module.
 import './theme-fixes.css';
 
 const queryClient = new QueryClient({
