@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{#i18n}}homeworks.title{{/i18n}}</title>
     <link rel="icon" id="favicon" href="" />
-    <link rel="stylesheet" href="/assets/js/ode-explorer/style.css?v=@@VERSION" />
+    <!-- Bootstrap openent partagé, chargé au runtime, à la place du style.css du
+         bundle ode-explorer : celui-ci embarque un bootstrap d'un millésime antérieur,
+         sans la couleur de marque des plateformes (bandeau turquoise au lieu du magenta
+         eclat-bfc) ni le correctif de contraste RGAA du vert 1d. Les deux feuilles ont
+         des jeux de sélecteurs équivalents — style.css ne contient aucune règle propre
+         à l'explorer, dont les styles vivent dans son JS — d'où la substitution plutôt
+         qu'une surcharge, qui doublerait 500 Ko de CSS. Le bundle JS reste inchangé. -->
+    <link rel="stylesheet" href="/assets/themes/openent-bootstrap/index.css" />
     <script
             type="module"
             crossorigin

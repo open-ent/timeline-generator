@@ -37,6 +37,8 @@ developer.id
 node_modules
 rev-manifest.json
 src/main/resources/public/js/behaviours.js
+# Bundle React (frontend/, Vite) : reconstruit en CI (build-and-publish.yml) et par build.sh local, jamais versionné
+src/main/resources/public/tlreact*
 src/main/resources/view
 gradle*
 .env

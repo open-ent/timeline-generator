@@ -108,6 +108,17 @@ public class TimelineController extends MongoDbControllerHelper {
 		// Create event "access to application TimelineGenerator" and store it, for module "statistics"
 		eventHelper.onAccess(request);
 
+		// IHM React de migration (CCTP 51C) accessible via `?ui=react` (timelinegenerator-react.html).
+		// ⚠️ Ce module a DÉJÀ une IHM edifice « explorer » (React) comme vue par défaut → on NE bascule PAS
+		// le défaut (resterait ambigu). `?ui=react` = ma nouvelle IHM ; défaut = explorer/existant.
+		final String uiParam = request.params().get("ui");
+		final String frontendUi = "react".equals(this.config.getString("frontend-ui", "angular")) ? "react" : "angular";
+		final String ui = ("react".equals(uiParam) || "angular".equals(uiParam)) ? uiParam : frontendUi;
+		if ("react".equals(ui)) {
+			renderView(request, new JsonObject(), "timelinegenerator-react.html", null);
+			return;
+		}
+
 		// Get the view parameter from the request
 		final String view = request.params().get("view");
 		// Get the use-explorer-ui configuration from the config

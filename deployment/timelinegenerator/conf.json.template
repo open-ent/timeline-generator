@@ -13,6 +13,7 @@
     "integration-mode" : "HTTP",
     "app-registry.port" : 8012,
     "mode" : "${mode}",
+        "frontend-ui" : "angular",
     "entcore.port" : 8009
   }
 }
