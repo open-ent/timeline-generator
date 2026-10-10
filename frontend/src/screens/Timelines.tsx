@@ -1,4 +1,5 @@
-import { Modal, useEdificeClient, useHasWorkflow } from '@open-ent/react';
+import { MediaLibrary, Modal, useEdificeClient, useHasWorkflow, useMediaLibrary } from '@open-ent/react';
+import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +46,10 @@ export function Timelines() {
   const { t } = useTranslation(['timelinegenerator', 'common']);
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { user } = useEdificeClient();
+  const { user, appCode } = useEdificeClient();
+  const { ref: mediaLibraryRef, ...mediaLibraryHandlers } = useMediaLibrary();
+  // Image de la frise en cours d'édition (« Propriétés »), choisie dans la médiathèque.
+  const [icon, setIcon] = useState('');
   const me = { userId: user?.userId ?? '', groupsIds: (user as { groupsIds?: string[] } | undefined)?.groupsIds ?? [] };
   const canCreate = useHasWorkflow(WORKFLOW.create) === true;
   const canCreateFolder = useHasWorkflow(WORKFLOW.createFolder) === true;
@@ -354,7 +358,14 @@ export function Timelines() {
                     </>
                   )}
                   {oneItem && canManage(oneItem, me) && (
-                    <button type="button" className="btn btn-sm btn-secondary" onClick={() => setDialog({ kind: 'properties', timeline: oneItem })}>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => {
+                        setIcon(oneItem.icon ?? '');
+                        setDialog({ kind: 'properties', timeline: oneItem });
+                      }}
+                    >
                       {t('properties', { defaultValue: 'Propriétés' })}
                     </button>
                   )}
@@ -468,12 +479,15 @@ export function Timelines() {
         <PropertiesDialog
           id={dialogId}
           timeline={dialog.timeline}
+          icon={icon}
+          onPickIcon={() => mediaLibraryRef.current?.show('image')}
+          onRemoveIcon={() => setIcon('')}
           pending={run.isPending}
           onClose={() => setDialog(null)}
           onSave={(headline2, text) =>
             run.mutate({
               ok: t('timeline.saved', { defaultValue: 'Frise enregistrée' }),
-              work: () => api.updateTimeline(dialog.timeline._id, { ...dialog.timeline, headline: headline2, text }),
+              work: () => api.updateTimeline(dialog.timeline._id, { ...dialog.timeline, headline: headline2, text, icon }),
             })
           }
         />
@@ -521,6 +535,18 @@ export function Timelines() {
           </Modal.Footer>
         </Modal>
       )}
+      <MediaLibrary
+        appCode={appCode}
+        ref={mediaLibraryRef}
+        visibility="protected"
+        {...mediaLibraryHandlers}
+        onSuccess={(result: unknown) => {
+          const file = (Array.isArray(result) ? result[0] : result) as { _id?: string; id?: string } | undefined;
+          const id = file?._id ?? file?.id;
+          if (id) setIcon(`/workspace/document/${id}`);
+          mediaLibraryRef.current?.hide();
+        }}
+      />
     </div>
   );
 }
@@ -550,8 +576,17 @@ function NameDialog(props: { id: string; title: string; label: string; initial: 
   );
 }
 
-/** Propriétés d'une frise : titre et description (l'image reste celle déjà choisie). */
-function PropertiesDialog(props: { id: string; timeline: Timeline; pending: boolean; onClose: () => void; onSave: (headline: string, text: string) => void }) {
+/** Propriétés d'une frise : titre, description et image (choisie dans la médiathèque). */
+function PropertiesDialog(props: {
+  id: string;
+  timeline: Timeline;
+  icon: string;
+  onPickIcon: () => void;
+  onRemoveIcon: () => void;
+  pending: boolean;
+  onClose: () => void;
+  onSave: (headline: string, text: string) => void;
+}) {
   const { t } = useTranslation(['timelinegenerator', 'common']);
   const [headline, setHeadline] = useState(props.timeline.headline);
   const [text, setText] = useState(props.timeline.text ?? '');
@@ -559,14 +594,43 @@ function PropertiesDialog(props: { id: string; timeline: Timeline; pending: bool
     <Modal id={props.id} isOpen onModalClose={props.onClose} size="md">
       <Modal.Header onModalClose={props.onClose}>{t('properties', { defaultValue: 'Propriétés' })}</Modal.Header>
       <Modal.Body>
+        <div className="d-flex gap-12 align-items-center mb-12">
+          {props.icon ? (
+            <img src={props.icon} alt="" data-timeline-icon style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 8 }} />
+          ) : (
+            <div className="border rounded d-flex align-items-center justify-content-center text-muted" style={{ width: 96, height: 96, fontSize: 13 }}>
+              {t('timeline.image.none', { defaultValue: 'Aucune image' })}
+            </div>
+          )}
+          <div className="d-flex flex-column gap-8">
+            <button type="button" className="btn btn-sm btn-secondary" onClick={props.onPickIcon}>
+              {t('timeline.image.choose', { defaultValue: 'Choisir une image' })}
+            </button>
+            {props.icon && (
+              <button type="button" className="btn btn-sm btn-outline-danger" onClick={props.onRemoveIcon}>
+                {t('timeline.image.remove', { defaultValue: "Retirer l'image" })}
+              </button>
+            )}
+          </div>
+        </div>
         <label htmlFor="tl-headline" className="form-label" style={{ fontWeight: 700 }}>
           {t('timeline.headline', { defaultValue: 'Titre de la frise' })}
         </label>
         <input id="tl-headline" className="form-control mb-12" value={headline} onChange={(e) => setHeadline(e.target.value)} autoFocus />
-        <label htmlFor="tl-text" className="form-label" style={{ fontWeight: 700 }}>
+        <div className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>
           {t('timelinegenerator.timeline.text', { defaultValue: 'Description' })}
-        </label>
-        <textarea id="tl-text" className="form-control" rows={4} value={text} onChange={(e) => setText(e.target.value)} />
+        </div>
+        {/* Éditeur riche comme l'AngularJS ; contenu vide → paragraphe vide (sinon erreur React #321). */}
+        <div data-timeline-text>
+          <Editor
+            content={text && text.trim() ? text : '<p></p>'}
+            mode="edit"
+            focus={false}
+            variant="outline"
+            visibility="protected"
+            onContentChange={({ editor }: { editor: EditorInstance }) => setText(editor.isEmpty ? '' : editor.getHTML())}
+          />
+        </div>
       </Modal.Body>
       <Modal.Footer>
         <button type="button" className="btn btn-secondary" onClick={props.onClose}>

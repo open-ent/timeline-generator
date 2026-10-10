@@ -2,6 +2,7 @@
 // Mêmes endpoints que la version AngularJS (backend Java inchangé).
 // Header X-XSRF-TOKEN injecté sur les mutations (comme calendar).
 
+import { StoredEvent } from './events';
 import { Folder, folderPayload } from './library';
 
 const APP = '/timelinegenerator';
@@ -19,24 +20,29 @@ export interface Timeline {
   shared?: Array<Record<string, unknown> & { userId?: string; groupId?: string }>;
 }
 
-/** Événement d'une frise. `startDate`/`endDate` sont des chaînes (« YYYY-MM-DD »). */
-export interface TimelineEvent {
+/** Événement d'une frise (même forme que l'AngularJS, cf. events.ts). */
+export type TimelineEvent = StoredEvent & {
   _id: string;
-  headline: string;
-  text?: string;
-  startDate: string;
-  endDate?: string;
-  img?: string;
-  video?: string;
   owner?: { userId: string; displayName: string };
-}
+};
 
-export interface EventInput {
-  headline: string;
-  startDate: string;
-  endDate?: string;
-  text?: string;
-}
+/** Données envoyées pour un événement, comme Event.toJSON en AngularJS (fin vide = pas de fin). */
+export type EventInput = Required<Pick<StoredEvent, 'headline' | 'startDate' | 'dateFormat'>> &
+  Pick<StoredEvent, 'text' | 'endDate' | 'img' | 'video'>;
+
+/**
+ * Corps envoyé pour un événement. `img` / `video` sont OMIS quand vides : le schéma serveur
+ * (jsonschema/event.json) refuse `null` (« $.img: null trouvé, string attendu », 400).
+ */
+const eventPayload = (e: EventInput) => ({
+  headline: e.headline,
+  text: e.text ?? '',
+  startDate: e.startDate,
+  endDate: e.endDate || '',
+  dateFormat: e.dateFormat,
+  ...(e.img ? { img: e.img } : {}),
+  ...(e.video ? { video: e.video } : {}),
+});
 
 // ── Partage (modèle entcore batch) ───────────────────────────────────────────
 export interface ShareAction {
@@ -146,12 +152,12 @@ export const getEvents = async (timelineId: string): Promise<TimelineEvent[]> =>
 
 export const createEvent = async (timelineId: string, data: EventInput): Promise<TimelineEvent> =>
   json<TimelineEvent>(
-    await fetch(`${APP}/timeline/${timelineId}/events`, { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(data) }),
+    await fetch(`${APP}/timeline/${timelineId}/events`, { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(eventPayload(data)) }),
   );
 
 export const updateEvent = async (timelineId: string, eventId: string, data: EventInput): Promise<TimelineEvent> =>
   json<TimelineEvent>(
-    await fetch(`${APP}/timeline/${timelineId}/event/${eventId}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(data) }),
+    await fetch(`${APP}/timeline/${timelineId}/event/${eventId}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(eventPayload(data)) }),
   );
 
 export const deleteEvent = async (timelineId: string, eventId: string): Promise<void> => {

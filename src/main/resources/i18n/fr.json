@@ -135,5 +135,17 @@
   "print": "Imprimer",
   "remove": "Supprimer",
   "restore": "Restaurer",
-  "duplicate.done": "Duplication terminée"
+  "duplicate.done": "Duplication terminée",
+  "timeline.event.saved": "Événement enregistré",
+  "timeline.events.removed": "Événement(s) supprimé(s)",
+  "timeline.event.error": "L'enregistrement a échoué.",
+  "timeline.event.error.headline": "Renseignez un titre.",
+  "timeline.event.error.start": "Renseignez une date de début valide.",
+  "timeline.event.error.end": "La date de fin doit être valide et postérieure à la date de début.",
+  "timeline.event.edit": "Modifier l'événement",
+  "timeline.mode": "Affichage",
+  "timeline.image.choose": "Choisir une image",
+  "timeline.image.remove": "Retirer l'image",
+  "timeline.image.none": "Aucune image",
+  "timeline.back": "Retour aux frises"
 }

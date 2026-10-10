@@ -102,17 +102,25 @@ export function folderPayload(f: Folder): Required<Pick<Folder, 'name' | 'parent
 /** Droit AngularJS « manage » d'une frise : modifier, partager, mettre à la corbeille. */
 export const MANAGE_RIGHT = 'net-atos-entng-timelinegenerator-controllers-TimelineController|updateTimeline';
 
+/** Droit AngularJS « contrib » d'une frise : créer, modifier, supprimer ses événements. */
+export const CONTRIB_RIGHT = 'net-atos-entng-timelinegenerator-controllers-EventController|createEvent';
+
+type Shared = Array<Record<string, unknown> & { userId?: string; groupId?: string }>;
+
 /**
- * Peut gérer la frise : propriétaire, ou partage (à soi ou à un de ses groupes) avec le droit de
- * modification. Ex. frise partagée au groupe « Enseignants » avec `…|updateTimeline: true` → oui.
+ * A le droit sur la frise : propriétaire, ou partage (à soi ou à un de ses groupes) portant ce droit.
+ * Ex. frise partagée au groupe « Enseignants » avec `…|updateTimeline: true` → gestion autorisée.
  */
-export function canManage(
-  item: { owner?: { userId: string }; shared?: Array<Record<string, unknown> & { userId?: string; groupId?: string }> },
-  me: { userId: string; groupsIds?: string[] },
-): boolean {
+export function hasRight(item: { owner?: { userId: string }; shared?: Shared }, me: { userId: string; groupsIds?: string[] }, right: string): boolean {
   if (item.owner?.userId === me.userId) return true;
   const groups = new Set(me.groupsIds ?? []);
-  return (item.shared ?? []).some(
-    (s) => s[MANAGE_RIGHT] === true && ((s.userId && s.userId === me.userId) || (s.groupId && groups.has(s.groupId))),
-  );
+  return (item.shared ?? []).some((s) => s[right] === true && ((s.userId && s.userId === me.userId) || (s.groupId && groups.has(s.groupId))));
 }
+
+/** Peut gérer la frise (modifier, partager, mettre à la corbeille). */
+export const canManage = (item: { owner?: { userId: string }; shared?: Shared }, me: { userId: string; groupsIds?: string[] }) =>
+  hasRight(item, me, MANAGE_RIGHT);
+
+/** Peut contribuer à la frise (événements). */
+export const canContrib = (item: { owner?: { userId: string }; shared?: Shared }, me: { userId: string; groupsIds?: string[] }) =>
+  hasRight(item, me, CONTRIB_RIGHT);

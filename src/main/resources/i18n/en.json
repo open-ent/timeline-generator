@@ -135,5 +135,17 @@
   "print": "Print",
   "remove": "Delete",
   "restore": "Restore",
-  "duplicate.done": "Duplication done"
+  "duplicate.done": "Duplication done",
+  "timeline.event.saved": "Event saved",
+  "timeline.events.removed": "Event(s) deleted",
+  "timeline.event.error": "Saving failed.",
+  "timeline.event.error.headline": "Enter a title.",
+  "timeline.event.error.start": "Enter a valid start date.",
+  "timeline.event.error.end": "The end date must be valid and after the start date.",
+  "timeline.event.edit": "Edit event",
+  "timeline.mode": "Display",
+  "timeline.image.choose": "Choose an image",
+  "timeline.image.remove": "Remove image",
+  "timeline.image.none": "No image",
+  "timeline.back": "Back to timelines"
 }
