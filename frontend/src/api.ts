@@ -2,6 +2,8 @@
 // Mêmes endpoints que la version AngularJS (backend Java inchangé).
 // Header X-XSRF-TOKEN injecté sur les mutations (comme calendar).
 
+import { Folder, folderPayload } from './library';
+
 const APP = '/timelinegenerator';
 
 export interface Timeline {
@@ -13,6 +15,8 @@ export interface Timeline {
   owner?: { userId: string; displayName: string };
   folder?: string;
   trashed?: boolean;
+  /** Partages : une entrée par utilisateur ou groupe, avec ses droits (`…|updateTimeline`: true…). */
+  shared?: Array<Record<string, unknown> & { userId?: string; groupId?: string }>;
 }
 
 /** Événement d'une frise. `startDate`/`endDate` sont des chaînes (« YYYY-MM-DD »). */
@@ -83,13 +87,56 @@ export const createTimeline = async (data: { headline: string; text?: string }):
     await fetch(`${APP}/timelines`, { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify({ ...data, type: 'timeline' }) }),
   );
 
-export const updateTimeline = async (id: string, data: { headline: string; text?: string }): Promise<Timeline> =>
+/**
+ * Modifie une frise. Le serveur REMPLACE les champs absents (ex. `text` absent → description
+ * effacée) : on renvoie donc toujours titre, description, image et état corbeille, comme
+ * Timeline.toJSON en AngularJS. Ex. renommer « Révolution » garde sa description.
+ */
+export const updateTimeline = async (
+  id: string,
+  data: { headline: string; text?: string; icon?: string; trashed?: boolean },
+): Promise<Timeline> =>
   json<Timeline>(
-    await fetch(`${APP}/timeline/${id}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify({ ...data, type: 'timeline' }) }),
+    await fetch(`${APP}/timeline/${id}`, {
+      ...base,
+      method: 'PUT',
+      headers: mutHeaders(),
+      body: JSON.stringify({ headline: data.headline, text: data.text ?? '', icon: data.icon ?? '', trashed: !!data.trashed, type: 'timeline' }),
+    }),
+  );
+
+/** Copie complète d'une frise et de ses événements (service de duplication du socle). */
+export const duplicateTimeline = async (id: string): Promise<{ duplicateId?: string }> =>
+  json(
+    await fetch('/archive/duplicate', {
+      ...base,
+      method: 'POST',
+      headers: mutHeaders(),
+      body: JSON.stringify({ application: 'timelinegenerator', resourceId: id }),
+    }),
   );
 
 export const deleteTimeline = async (id: string): Promise<void> => {
   const res = await fetch(`${APP}/timeline/${id}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
+  if (!res.ok && res.status !== 204) throw new Error(String(res.status));
+};
+
+// ── Dossiers (bibliothèque) ─────────────────────────────────────────────────────
+export const getFolders = async (): Promise<Folder[]> =>
+  json<Folder[]>(await fetch(`${APP}/folder/list/all`, base));
+
+export const createFolder = async (f: Omit<Folder, '_id'>): Promise<Folder> =>
+  json<Folder>(
+    await fetch(`${APP}/folder`, { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(folderPayload({ ...f, _id: '' })) }),
+  );
+
+export const updateFolder = async (f: Folder): Promise<void> => {
+  const res = await fetch(`${APP}/folder/${f._id}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(folderPayload(f)) });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+export const deleteFolder = async (id: string): Promise<void> => {
+  const res = await fetch(`${APP}/folder/${id}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
   if (!res.ok && res.status !== 204) throw new Error(String(res.status));
 };
 
@@ -129,6 +176,11 @@ export const api = {
   createTimeline,
   updateTimeline,
   deleteTimeline,
+  duplicateTimeline,
+  getFolders,
+  createFolder,
+  updateFolder,
+  deleteFolder,
   getEvents,
   createEvent,
   updateEvent,

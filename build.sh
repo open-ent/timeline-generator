@@ -145,12 +145,17 @@ buildReact () {
   # Sorties nommées `tlreact.*` (cf. frontend/vite.config.ts) pour ne pas écraser
   # le `public/index.js` de l'IHM edifice explorer, qui cohabite dans le même mod.
   echo "[buildReact] Build de l'IHM React (vite)..."
-  if [ "$NO_DOCKER" = "true" ] ; then
-    (cd frontend && pnpm install --frozen-lockfile && pnpm run build)
-  else
-    docker compose run --rm -u "$USER_UID:$GROUP_GID" -w /home/node/app/frontend \
-      -e NODE_AUTH_TOKEN node sh -c "pnpm install --frozen-lockfile && pnpm run build"
+  # Ancien bundle supprimé d'abord : sinon un build en échec réutilisait en silence le précédent.
+  # Ex. image node sans pnpm (« pnpm: not found ») → tlreact.js de la veille empaqueté sans erreur.
+  rm -rf frontend/dist
+  # pnpm via corepack (fourni avec Node ≥ 18). Pas dans le conteneur `node` du docker-compose :
+  # il est en Node 16 (pour gulp), trop ancien pour pnpm (« requires at least Node.js v18.12»).
+  local node_major
+  node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  if [ "$node_major" -lt 18 ] ; then
+    echo "[buildReact] Node ≥ 18 requis sur la machine pour l'IHM React (trouvé : ${node_major})"; exit 1
   fi
+  (cd frontend && corepack pnpm install --frozen-lockfile && corepack pnpm run build) || { echo "[buildReact] échec du build React"; exit 1; }
   [ -f frontend/dist/public/tlreact.js ] || { echo "[buildReact] tlreact.js absent"; exit 1; }
 
   echo "[buildReact] Injection des assets dans les ressources du backend..."
