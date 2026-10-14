@@ -1,3 +1,5 @@
+import { dateLocale } from './locale';
+
 /** Fonctions pures du module Timeline-generator (testables). */
 
 /**
@@ -17,10 +19,10 @@ export function parseFlexDate(s?: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Formate une date de frise en « jj/mm/aaaa » (locale FR), tolérante au format. */
+/** Formate une date de frise dans la locale de la session, tolérante au format. */
 export function formatDate(s?: string): string {
   const d = parseFlexDate(s);
-  return d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  return d ? d.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
 }
 
 /** Convertit une date de frise en valeur `<input type="date">` (« YYYY-MM-DD »). */

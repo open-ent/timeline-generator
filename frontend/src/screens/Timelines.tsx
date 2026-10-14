@@ -5,6 +5,8 @@ import { FormEvent, ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { dateLocale } from '../locale';
+
 import { api, Timeline } from '../api';
 import {
   canManage,
@@ -82,7 +84,7 @@ export function Timelines() {
   const parentId = location.kind === 'folder' ? location.id : ROOT;
 
   // Contenu de l'emplacement courant (la recherche porte sur toutes les frises non supprimées).
-  const norm = (s: string) => s.toLocaleLowerCase('fr-FR');
+  const norm = (s: string) => s.toLocaleLowerCase(dateLocale());
   const view = useMemo(() => {
     if (inTrash) return trashContent(timelines, folders);
     if (search.trim()) {
