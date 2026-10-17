@@ -16,6 +16,10 @@ export interface Timeline {
   owner?: { userId: string; displayName: string };
   folder?: string;
   trashed?: boolean;
+  /** Dernière modification (horodatage serveur). */
+  modified?: { $date: number };
+  /** `PUBLIC` quand la frise est publiée sur le portail. */
+  visibility?: string;
   /** Partages : une entrée par utilisateur ou groupe, avec ses droits (`…|updateTimeline`: true…). */
   shared?: Array<Record<string, unknown> & { userId?: string; groupId?: string }>;
 }

@@ -9,6 +9,9 @@ import { dateLocale } from '../locale';
 
 import { api, Timeline } from '../api';
 import {
+  applyFilters,
+  modifiedLabel,
+  rightBadge,
   canManage,
   childFolders,
   descendants,
@@ -73,6 +76,8 @@ export function Timelines() {
   const [sharing, setSharing] = useState<{ id: string; name: string } | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [search, setSearch] = useState('');
+  // Filtres « Mes frises » / « Partagées avec moi » (tous deux cochés par défaut, comme l'AngularJS).
+  const [filters, setFilters] = useState({ mine: true, shared: true });
   const [creating, setCreating] = useState(false);
   const [headline, setHeadline] = useState('');
 
@@ -89,10 +94,16 @@ export function Timelines() {
     if (inTrash) return trashContent(timelines, folders);
     if (search.trim()) {
       const q = norm(search.trim());
-      return { folders: [] as Folder[], items: timelines.filter((x) => !x.trashed && norm(x.headline ?? '').includes(q)) };
+      return {
+        folders: [] as Folder[],
+        items: applyFilters(timelines.filter((x) => !x.trashed && norm(x.headline ?? '').includes(q)), filters, me.userId),
+      };
     }
-    return { folders: childFolders(folders, parentId), items: itemsIn(timelines, folders, parentId) };
-  }, [inTrash, search, timelines, folders, parentId]);
+    return {
+      folders: childFolders(folders, parentId),
+      items: applyFilters(itemsIn(timelines, folders, parentId), filters, me.userId),
+    };
+  }, [inTrash, search, timelines, folders, parentId, filters, me.userId]);
 
   const selFolders = view.folders.filter((f) => selected.has(f._id));
   const selItems = view.items.filter((x) => selected.has(x._id));
@@ -171,12 +182,12 @@ export function Timelines() {
     });
 
   // ── Déplacement (frise : retirée de ses dossiers puis rangée ; dossier : nouveau parent) ─────
-  const moveSelection = (target: string) =>
+  const moveThings = (its: Timeline[], fls: Folder[], target: string) =>
     run.mutate({
       ok: t('timeline.moved', { defaultValue: 'Les éléments ont été déplacés' }),
       work: async () => {
         let current = folders;
-        for (const x of selItems) {
+        for (const x of its) {
           for (const f of foldersContaining(current, x._id)) {
             const upd = { ...f, ressourceIds: (f.ressourceIds ?? []).filter((id) => id !== x._id) };
             await api.updateFolder(upd);
@@ -189,9 +200,37 @@ export function Timelines() {
             current = current.map((c) => (c._id === upd._id ? upd : c));
           }
         }
-        for (const f of selFolders) await api.updateFolder({ ...f, parentId: target });
+        for (const f of fls) await api.updateFolder({ ...f, parentId: target });
       },
     });
+  const moveSelection = (target: string) => moveThings(selItems, selFolders, target);
+
+  // ── Glisser-déposer : déposer des éléments sur un dossier (ou « Mes frises ») les y déplace ─────
+  const dropOn = (target: string, draggedId: string) => {
+    // Si l'élément glissé fait partie de la sélection, toute la sélection suit (parité AngularJS).
+    const ids = selected.has(draggedId) ? [...selected] : [draggedId];
+    const its = timelines.filter((x) => ids.includes(x._id));
+    const fls = folders.filter((f) => ids.includes(f._id));
+    // Un dossier ne se dépose ni sur lui-même ni dans l'un de ses descendants.
+    const allowed = new Set([ROOT, ...moveTargets(folders, fls.map((f) => f._id)).map((f) => f._id)]);
+    if (!allowed.has(target) || (its.length === 0 && fls.length === 0)) return;
+    moveThings(its, fls, target);
+  };
+  const dropProps = (target: string) =>
+    inTrash || !canCreateFolder
+      ? {}
+      : {
+          onDragOver: (e: React.DragEvent) => e.preventDefault(),
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain');
+            if (id) dropOn(target, id);
+          },
+        };
+  const dragProps = (id: string) =>
+    inTrash || !canCreateFolder
+      ? {}
+      : { draggable: true, onDragStart: (e: React.DragEvent) => e.dataTransfer.setData('text/plain', id) };
 
   const createTimeline = useMutation({
     mutationFn: async () => {
@@ -215,7 +254,8 @@ export function Timelines() {
   const navItem = (label: ReactNode, l: Location, active: boolean, depth = 0) => (
     <button
       type="button"
-      className={`btn btn-sm text-start w-100 ${active ? 'btn-primary' : 'btn-link'}`}
+      {...(l.kind === 'root' ? dropProps(ROOT) : l.kind === 'folder' ? dropProps(l.id) : {})}
+      className={`btn btn-sm text-start w-100 ${active ? 'btn-primary' : 'btn-secondary'}`}
       style={{ paddingLeft: 8 + depth * 16 }}
       aria-current={active ? 'page' : undefined}
       onClick={() => {
@@ -326,6 +366,19 @@ export function Timelines() {
             )}
           </div>
 
+          {!inTrash && (
+            <div className="d-flex gap-16 flex-wrap mb-12" role="group" aria-label={t('timeline.filters', { defaultValue: 'Filtrer les frises' })}>
+              <label className="d-flex align-items-center gap-4">
+                <input type="checkbox" checked={filters.mine} onChange={(e) => setFilters({ ...filters, mine: e.target.checked })} />
+                {t('filters.mine', { defaultValue: 'Mes frises' })}
+              </label>
+              <label className="d-flex align-items-center gap-4">
+                <input type="checkbox" checked={filters.shared} onChange={(e) => setFilters({ ...filters, shared: e.target.checked })} />
+                {t('filters.sharedTimelines', { defaultValue: 'Les frises partagées avec moi' })}
+              </label>
+            </div>
+          )}
+
           {selCount > 0 && (
             <div className="d-flex gap-8 flex-wrap align-items-center mb-12 p-8 border rounded" role="toolbar" aria-label={t('timeline.actions', { defaultValue: 'Actions sur la sélection' })}>
               <span role="status" className="me-8">
@@ -412,29 +465,41 @@ export function Timelines() {
               {t('timeline.error', { defaultValue: 'Une erreur est survenue.' })}
             </div>
           )}
-          {!loading && view.folders.length + view.items.length === 0 && (
+          {!loading && (view.folders.length + view.items.length === 0 || (!inTrash && !filters.mine && !filters.shared)) && (
             <p className="text-muted">
               {inTrash
                 ? t('explorer.emptyScreen.trash.empty', { defaultValue: 'Aucune frise dans la corbeille pour le moment.' })
-                : t('timeline.empty', { defaultValue: 'Aucune frise. Créez-en une.' })}
+                : search.trim()
+                  ? t('empty.search', { defaultValue: 'Aucune frise ne correspond à votre recherche.' })
+                  : !filters.mine && !filters.shared
+                    ? t('empty.filters', { defaultValue: 'Aucune frise ne correspond aux filtres choisis.' })
+                    : t('timeline.empty', { defaultValue: 'Aucune frise. Créez-en une.' })}
             </p>
           )}
 
           <ul className="list-unstyled" data-library>
             {view.folders.map((f) => (
-              <li key={f._id} className="py-8 border-bottom d-flex gap-8 align-items-center" data-folder-id={f._id}>
+              <li key={f._id} className="py-8 border-bottom d-flex gap-8 align-items-center" data-folder-id={f._id} {...dragProps(f._id)} {...dropProps(f._id)}>
                 <input type="checkbox" aria-label={f.name} checked={selected.has(f._id)} onChange={() => toggle(f._id)} />
                 {inTrash ? (
                   <span style={{ fontSize: 17 }}>📁 {f.name}</span>
                 ) : (
-                  <button type="button" className="btn btn-link p-0 fw-bold" style={{ fontSize: 17 }} onClick={() => go({ kind: 'folder', id: f._id })}>
+                  // Pas de `.btn-link` : invisible sur le thème (texte blanc sur fond blanc).
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="fw-bold text-decoration-underline"
+                    style={{ fontSize: 17, cursor: 'pointer' }}
+                    onClick={() => go({ kind: 'folder', id: f._id })}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && go({ kind: 'folder', id: f._id })}
+                  >
                     📁 {f.name}
-                  </button>
+                  </span>
                 )}
               </li>
             ))}
             {view.items.map((x) => (
-              <li key={x._id} className="py-8 border-bottom d-flex gap-8 align-items-center" data-timeline-id={x._id}>
+              <li key={x._id} className="py-8 border-bottom d-flex gap-8 align-items-center" data-timeline-id={x._id} {...dragProps(x._id)}>
                 <input type="checkbox" aria-label={x.headline} checked={selected.has(x._id)} onChange={() => toggle(x._id)} />
                 {inTrash ? (
                   <span style={{ fontSize: 17 }}>{x.headline}</span>
@@ -444,6 +509,22 @@ export function Timelines() {
                   </Link>
                 )}
                 {x.owner && x.owner.userId !== me.userId && <span className="text-muted small">— {x.owner.displayName}</span>}
+                {!inTrash && (
+                  <span className="text-muted small ms-auto d-flex gap-8 align-items-center" data-timeline-meta>
+                    {modifiedLabel(x.modified, dateLocale()) && (
+                      <span>{t('timeline.modified.on', { defaultValue: 'Modifié le [[date]]', date: modifiedLabel(x.modified, dateLocale()) })}</span>
+                    )}
+                    {(x.shared?.length ?? 0) > 0 && <span>{t('tooltip.shared', { defaultValue: 'Frise partagée' })}</span>}
+                    {x.visibility === 'PUBLIC' && <span>{t('tooltip.public', { defaultValue: 'Frise publique' })}</span>}
+                    <span data-right-badge={rightBadge(x, me)}>
+                      {rightBadge(x, me) === 'manager'
+                        ? t('tooltip.manager', { defaultValue: 'Gestionnaire' })
+                        : rightBadge(x, me) === 'contrib'
+                          ? t('tooltip.update', { defaultValue: 'Contributeur' })
+                          : t('tooltip.read', { defaultValue: 'Lecteur' })}
+                    </span>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

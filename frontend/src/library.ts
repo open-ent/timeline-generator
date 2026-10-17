@@ -124,3 +124,32 @@ export const canManage = (item: { owner?: { userId: string }; shared?: Shared },
 /** Peut contribuer à la frise (événements). */
 export const canContrib = (item: { owner?: { userId: string }; shared?: Shared }, me: { userId: string; groupsIds?: string[] }) =>
   hasRight(item, me, CONTRIB_RIGHT);
+
+/** Filtres de la bibliothèque : « Mes frises » (dont je suis propriétaire) et « Partagées avec moi » (propriétaire autre). */
+export interface LibraryFilters {
+  mine: boolean;
+  shared: boolean;
+}
+
+/**
+ * Applique les filtres (parité AngularJS `refreshFilters`) : une frise est gardée si elle est à moi et « mine »
+ * est coché, ou à un autre et « shared » est coché ; aucun coché = liste vide.
+ */
+export function applyFilters<T extends { owner?: { userId: string } }>(items: T[], filters: LibraryFilters, meId: string): T[] {
+  return items.filter((x) => (x.owner?.userId === meId ? filters.mine : filters.shared));
+}
+
+/** Niveau de droit affiché sur une vignette : gestionnaire, contributeur ou lecteur. */
+export function rightBadge(
+  item: { owner?: { userId: string }; shared?: Shared },
+  me: { userId: string; groupsIds?: string[] },
+): 'manager' | 'contrib' | 'read' {
+  if (canManage(item, me)) return 'manager';
+  return canContrib(item, me) ? 'contrib' : 'read';
+}
+
+/** « 17/10/2026 » depuis la date de modification serveur (`{ $date: ms }`), vide si absente. */
+export function modifiedLabel(modified?: { $date: number }, locale = 'fr-FR'): string {
+  if (!modified?.$date) return '';
+  return new Date(modified.$date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+}

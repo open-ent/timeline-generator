@@ -147,5 +147,10 @@
   "timeline.image.choose": "Choisir une image",
   "timeline.image.remove": "Retirer l'image",
   "timeline.image.none": "Aucune image",
-  "timeline.back": "Retour aux frises"
+  "timeline.back": "Retour aux frises",
+  "timeline.modified.on": "Modifié le [[date]]",
+  "tooltip.public": "Frise publique",
+  "timeline.filters": "Filtrer les frises",
+  "empty.search": "Aucune frise ne correspond à votre recherche.",
+  "empty.filters": "Aucune frise ne correspond aux filtres choisis."
 }

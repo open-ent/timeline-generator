@@ -147,5 +147,10 @@
   "timeline.image.choose": "Choose an image",
   "timeline.image.remove": "Remove image",
   "timeline.image.none": "No image",
-  "timeline.back": "Back to timelines"
+  "timeline.back": "Back to timelines",
+  "timeline.modified.on": "Modified on [[date]]",
+  "tooltip.public": "Public timeline",
+  "timeline.filters": "Filter timelines",
+  "empty.search": "No timeline matches your search.",
+  "empty.filters": "No timeline matches the selected filters."
 }

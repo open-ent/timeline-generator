@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canManage, childFolders, descendants, folderPayload, Folder, foldersContaining, itemsIn, moveTargets, pathTo, trashContent } from './library';
+import { applyFilters, canManage, CONTRIB_RIGHT, childFolders, descendants, folderPayload, Folder, foldersContaining, itemsIn, modifiedLabel, moveTargets, pathTo, rightBadge, trashContent } from './library';
 
 // Arborescence de test : Histoire (t1) > Antiquité (t2) ; Sciences (supprimé, t3) ; t4 à la racine ; t5 supprimée.
 const folders: Folder[] = [
@@ -43,5 +43,26 @@ describe('bibliothèque des frises', () => {
     expect(canManage({ owner: { userId: 'u1' } }, { userId: 'u1' })).toBe(true);
     expect(canManage({ owner: { userId: 'u2' }, shared: [{ groupId: 'g1', [right]: true }] }, { userId: 'u1', groupsIds: ['g1'] })).toBe(true);
     expect(canManage({ owner: { userId: 'u2' }, shared: [{ userId: 'u1' }] }, { userId: 'u1' })).toBe(false);
+  });
+});
+
+describe('filtres de la bibliothèque', () => {
+  const items = [
+    { owner: { userId: 'me' }, n: 'a' },
+    { owner: { userId: 'x' }, n: 'b' },
+  ];
+  it('mes frises / partagées / les deux / aucune', () => {
+    expect(applyFilters(items, { mine: true, shared: false }, 'me').map((i) => i.n)).toEqual(['a']);
+    expect(applyFilters(items, { mine: false, shared: true }, 'me').map((i) => i.n)).toEqual(['b']);
+    expect(applyFilters(items, { mine: true, shared: true }, 'me')).toHaveLength(2);
+    expect(applyFilters(items, { mine: false, shared: false }, 'me')).toHaveLength(0);
+  });
+  it('niveau de droit et date de modification', () => {
+    const me = { userId: 'me', groupsIds: [] };
+    expect(rightBadge({ owner: { userId: 'me' } }, me)).toBe('manager');
+    expect(rightBadge({ owner: { userId: 'x' }, shared: [{ userId: 'me', [CONTRIB_RIGHT]: true }] }, me)).toBe('contrib');
+    expect(rightBadge({ owner: { userId: 'x' } }, me)).toBe('read');
+    expect(modifiedLabel({ $date: new Date(2026, 9, 17).getTime() })).toBe('17/10/2026');
+    expect(modifiedLabel(undefined)).toBe('');
   });
 });
