@@ -165,6 +165,18 @@ public class TimelineController extends MongoDbControllerHelper {
 			return;
 		}
 
+		// Ancienne interface (AngularJS) demandée explicitement par `?ui=angular` (bouton de bascule) : elle passe avant
+		// l'interface « explorer » servie par défaut sur la page d'accueil.
+		// L'application Angular ne se présente que si `view` figure dans l'adresse (sinon elle renvoie vers l'explorateur).
+		if ("angular".equals(request.getParam("ui"))) {
+			if (request.params().get("view") == null) {
+				redirect(request, "/timelinegenerator?ui=angular&view=list");
+			} else {
+				renderView(request);
+			}
+			return;
+		}
+
 		// Get the view parameter from the request
 		final String view = request.params().get("view");
 		// Get the use-explorer-ui configuration from the config
